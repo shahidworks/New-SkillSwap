@@ -66,7 +66,7 @@ const userSchema = new mongoose.Schema({
   skillsWanted: [skillWanted],
   credits: { 
     type: Number, 
-    default: 0 
+    default: 5
   },
   createdAt: { 
     type: Date, 

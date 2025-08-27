@@ -165,44 +165,78 @@ export const getMessages = async (req, res) => {
   }
 };
 
+
+
+// ✅ Corrected handleCreditTransaction
+const handleCreditTransaction = async (senderId, recipientId, requestedHours, offeredHours) => {
+  try {
+    // Sender pays credits for requested skill
+    await User.findByIdAndUpdate(senderId, { $inc: { credits: -requestedHours } });
+
+    // Recipient earns credits for offering their skill
+    await User.findByIdAndUpdate(recipientId, { $inc: { credits: +offeredHours } });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Credit transaction failed:", error);
+    return { success: false, error };
+  }
+};
+
+// ✅ Corrected updateMessageStatus
 export const updateMessageStatus = async (req, res) => {
   try {
-    const { messageId } = req.params;
+    const { id } = req.params;
     const { status } = req.body;
 
-    console.log(`Updating message ${messageId} to status ${status}`);
-
+    // Update the message and populate necessary fields
     const message = await Message.findByIdAndUpdate(
-      messageId,
+      id,
       { status },
       { new: true }
     )
-    .populate('sender', 'name avatar')
-    .populate('recipient', 'name avatar')
-    .populate('skill', 'name category rate level')
-    .populate('offeredSkill', 'name category rate level');
+      .populate("sender", "name email")
+      .populate("recipient", "name email")
+      .populate("skillRequested skillOffered", "name hours");
 
     if (!message) {
-      return res.status(404).json({
-        success: false,
-        message: 'Message not found'
-      });
+      return res.status(404).json({ success: false, error: "Message not found" });
     }
 
-    console.log('Message status updated:', message);
+    // If message accepted → handle credits
+    if (status === "accepted") {
+      let messageContent;
+      try {
+        messageContent = JSON.parse(message.content);
+      } catch (err) {
+        return res.status(400).json({ success: false, error: "Invalid message content format" });
+      }
 
-    res.json({
-      success: true,
-      data: message
-    });
+      const { skillRequested, skillOffered } = messageContent;
+
+      if (!skillRequested?.hours || !skillOffered?.hours) {
+        return res.status(400).json({ success: false, error: "Skill hours not found" });
+      }
+
+      const transactionResult = await handleCreditTransaction(
+        message.sender._id,
+        message.recipient._id,
+        skillRequested.hours,
+        skillOffered.hours
+      );
+
+      if (!transactionResult.success) {
+        return res.status(500).json({ success: false, error: "Credit transaction failed" });
+      }
+    }
+
+    res.status(200).json({ success: true, data: message });
   } catch (error) {
-    console.error('Error updating message status:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Failed to update message status'
-    });
+    console.error("Error updating message status:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 };
+
 
 export const markAsRead = async (req, res) => {
   try {

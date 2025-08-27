@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { 
   MapPin, Star, Clock, Calendar, Plus, Edit3, 
   TrendingUp, TrendingDown, X, Check, ChevronDown,
-  User, Mail, Info, Lock, LogOut, Trash2
+  User, Mail, Info, Lock, LogOut, Trash2, Coins
 } from 'lucide-react';
 import { formatDate } from '../utils/dateUtils';
 
@@ -354,12 +354,12 @@ const Profile = () => {
                   <div className="flex flex-wrap items-center gap-4 text-gray-600 mb-4">
                     <div className="flex items-center space-x-1">
                       <MapPin className="w-4 h-4" />
-                      <span>{user.location || 'No location set'}</span>
+                      <span>{user.location || 'Chennai'}</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                      <span>{user.rating || '0'}</span>
-                      <span>({user.reviewCount || '0'} reviews)</span>
+                      <span>{user.rating || '4.5'}</span>
+                      <span>({user.reviewCount || '99+'} reviews)</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <Calendar className="w-4 h-4" />
@@ -372,9 +372,20 @@ const Profile = () => {
                 </>
               )}
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600">{user.timeBalance || '0'}h</div>
-              <div className="text-sm text-gray-600">Time Balance</div>
+            <div className="flex flex-col items-center space-y-4">
+              {/* Credits Display */}
+              <div className="text-center">
+                <div className="flex items-center justify-center space-x-1 text-blue-600 mb-1">
+                  <Coins className="w-6 h-6" />
+                  <span className="text-2xl font-bold">{user.credits || 0}</span>
+                </div>
+                <div className="text-sm text-gray-600">Credits</div>
+              </div>
+              
+              {/* Time Balance Display */}
+              <div className="text-center">
+               
+              </div>
             </div>
           </div>
           {editMode && (
@@ -400,16 +411,17 @@ const Profile = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex space-x-2 mb-8 overflow-x-auto pb-2">
-          {tabs.map(tab => (
-            <TabButton
-              key={tab.id}
-              tab={tab}
-              isActive={activeTab === tab.id}
-              onClick={setActiveTab}
-            />
-          ))}
-        </div>
+       <div className="flex space-x-2 mb-8 overflow-x-auto scrollbar-hide pb-2">
+  {tabs.map(tab => (
+    <TabButton
+      key={tab.id}
+      tab={tab}
+      isActive={activeTab === tab.id}
+      onClick={setActiveTab}
+    />
+  ))}
+</div>
+
 
         {/* Tab Content */}
         <div className="space-y-6">
@@ -697,7 +709,6 @@ const Profile = () => {
         </div>
       )}
     </div>
-  );
-};
+  );}
 
 export default Profile;

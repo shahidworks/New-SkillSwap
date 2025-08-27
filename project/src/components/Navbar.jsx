@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Home, User, MessageCircle, LogOut, Clock } from 'lucide-react';
+import { Home, User, MessageCircle, LogOut, Clock, Coins } from 'lucide-react';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -53,10 +53,17 @@ const Navbar = () => {
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">
-            <div className="hidden md:flex items-center space-x-2 text-sm text-gray-600">
-              <Clock className="w-4 h-4 text-blue-600" />
-              <span className="font-medium text-blue-600">{user.timeBalance || 10}h</span>
+            <div className="hidden md:flex items-center space-x-4">
+              {/* Credits Display */}
+              <div className="flex items-center space-x-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-lg">
+                <Coins className="w-4 h-4" />
+                <span className="font-medium">{user.credits || 0} Credit(s)</span>
+              </div>
+              
+              {/* Time Balance Display */}
+              
             </div>
+            
             <div className="flex items-center space-x-3">
               <img
                 src={user.avatar}
@@ -93,6 +100,17 @@ const Navbar = () => {
               <span>{label}</span>
             </Link>
           ))}
+        </div>
+        
+        {/* Mobile Credits Display */}
+        <div className="border-t border-gray-200 p-3">
+          <div className="flex items-center justify-center space-x-4 text-sm">
+            <div className="flex items-center space-x-1 text-blue-600">
+              <Coins className="w-4 h-4" />
+              <span className="font-medium">{user.credits || 0} Credits</span>
+            </div>
+            
+          </div>
         </div>
       </div>
     </nav>
