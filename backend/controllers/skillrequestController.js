@@ -1,4 +1,4 @@
-import skillRequestModel from "../models/skillRequestModel.js";
+import skillRequestModel from "../models/skillrequestModel.js";
 
 // Create a skill request
 export const createSkillRequest = async (req, res) => {
