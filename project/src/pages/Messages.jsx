@@ -10,7 +10,7 @@ import { formatDistanceToNow } from '../utils/dateUtils';
 
 const Messages = () => {
   const { user } = useAuth();
-  const { chats, messages, notifications, updateMessageStatus, markMessageAsRead, fetchMessages, sendMessage } = useApp();
+  const { chats, messages, notifications, updateMessageStatus, markMessageAsRead, fetchMessages, sendMessage, refreshUser } = useApp();
   const [selectedChat, setSelectedChat] = useState(null);
   const [activeTab, setActiveTab] = useState('chats');
   const [searchQuery, setSearchQuery] = useState('');
@@ -156,6 +156,9 @@ const Messages = () => {
         );
         
         await updateMessageStatus(exchangeRequest._id, status);
+        
+        // Refresh user data to get updated credits
+        await refreshUser();
         
         const statusMessage = status === 'accepted' 
           ? `Great! ${user.name} has accepted your skill exchange request. ${requestedHours} credit(s) have been deducted from your account.`

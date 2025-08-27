@@ -14,6 +14,16 @@ export const AppProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
+
+  const refreshUser = async () => {
+  try {
+    const response = await api.get('/auth/me');
+    setUser(response.data.data);
+  } catch (error) {
+    console.error('Error refreshing user data:', error);
+  }
+};
+
   const fetchMessages = useCallback(async () => {
     if (!user) return;
     try {
@@ -194,7 +204,8 @@ export const AppProvider = ({ children }) => {
         fetchMessages,
         sendMessage,
         updateMessageStatus,
-        markMessageAsRead
+        markMessageAsRead,
+        refreshUser
       }}
     >
       {children}

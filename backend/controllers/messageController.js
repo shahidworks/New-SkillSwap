@@ -165,78 +165,135 @@ export const getMessages = async (req, res) => {
   }
 };
 
-
-
-// ✅ Corrected handleCreditTransaction
+// Handle credit transactions for skill exchange
 const handleCreditTransaction = async (senderId, recipientId, requestedHours, offeredHours) => {
   try {
-    // Sender pays credits for requested skill
+    // Find users
+    const sender = await User.findById(senderId);
+    const recipient = await User.findById(recipientId);
+    
+    if (!sender || !recipient) {
+      return { success: false, error: "User not found" };
+    }
+    
+    // Check if both users have enough credits
+    if (sender.credits < requestedHours) {
+      return { 
+        success: false, 
+        error: `${sender.name} doesn't have enough credits (needs ${requestedHours}, has ${sender.credits})` 
+      };
+    }
+    
+    if (recipient.credits < offeredHours) {
+      return { 
+        success: false, 
+        error: `${recipient.name} doesn't have enough credits (needs ${offeredHours}, has ${recipient.credits})` 
+      };
+    }
+    
+    // Perform credit transactions
     await User.findByIdAndUpdate(senderId, { $inc: { credits: -requestedHours } });
-
-    // Recipient earns credits for offering their skill
-    await User.findByIdAndUpdate(recipientId, { $inc: { credits: +offeredHours } });
-
+    await User.findByIdAndUpdate(recipientId, { $inc: { credits: -offeredHours } });
+    
     return { success: true };
   } catch (error) {
     console.error("Credit transaction failed:", error);
-    return { success: false, error };
+    return { success: false, error: error.message };
   }
 };
 
-// ✅ Corrected updateMessageStatus
 export const updateMessageStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+    const userId = req.user.id;
 
-    // Update the message and populate necessary fields
-    const message = await Message.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    )
-      .populate("sender", "name email")
-      .populate("recipient", "name email")
-      .populate("skillRequested skillOffered", "name hours");
+    console.log(`Updating message ${id} to status: ${status} by user: ${userId}`);
+
+    // Find the message first
+    const message = await Message.findById(id)
+      .populate("sender", "name email credits")
+      .populate("recipient", "name email credits");
 
     if (!message) {
       return res.status(404).json({ success: false, error: "Message not found" });
     }
 
+    // Parse the message content to get skill details
+    let messageContent;
+    try {
+      messageContent = JSON.parse(message.content);
+    } catch (err) {
+      return res.status(400).json({ success: false, error: "Invalid message content format" });
+    }
+
+    // Check if user has permission to update this message
+    const isRecipient = message.recipient._id.toString() === userId;
+    const isSender = message.sender._id.toString() === userId;
+    
+    if (!isRecipient && !isSender) {
+      return res.status(403).json({ 
+        success: false, 
+        error: "You don't have permission to update this message" 
+      });
+    }
+
+    // Only recipient can accept/decline requests
+    if ((status === 'accepted' || status === 'declined') && !isRecipient) {
+      return res.status(403).json({ 
+        success: false, 
+        error: "Only the recipient can accept or decline exchange requests" 
+      });
+    }
+
+    // Update the message status
+    const updatedMessage = await Message.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    )
+      .populate("sender", "name email credits")
+      .populate("recipient", "name email credits");
+
     // If message accepted → handle credits
     if (status === "accepted") {
-      let messageContent;
-      try {
-        messageContent = JSON.parse(message.content);
-      } catch (err) {
-        return res.status(400).json({ success: false, error: "Invalid message content format" });
-      }
-
       const { skillRequested, skillOffered } = messageContent;
 
-      if (!skillRequested?.hours || !skillOffered?.hours) {
-        return res.status(400).json({ success: false, error: "Skill hours not found" });
+      if (!skillRequested?.rate || !skillOffered?.rate) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "Skill rates not found in message content" 
+        });
       }
 
       const transactionResult = await handleCreditTransaction(
         message.sender._id,
         message.recipient._id,
-        skillRequested.hours,
-        skillOffered.hours
+        skillRequested.rate,
+        skillOffered.rate
       );
 
       if (!transactionResult.success) {
-        return res.status(500).json({ success: false, error: "Credit transaction failed" });
+        // Revert the message status if credit transaction fails
+        await Message.findByIdAndUpdate(id, { status: 'pending' });
+        
+        return res.status(400).json({ 
+          success: false, 
+          error: transactionResult.error 
+        });
       }
     }
 
-    res.status(200).json({ success: true, data: message });
+    res.status(200).json({ 
+      success: true, 
+      data: updatedMessage,
+      message: status === 'accepted' ? 'Exchange accepted and credits deducted' : 'Exchange declined'
+    });
   } catch (error) {
     console.error("Error updating message status:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
-
 
 export const markAsRead = async (req, res) => {
   try {
@@ -299,8 +356,6 @@ export const getChat = async (req, res) => {
   }
 };
 
-
-
 export const sendChatMessage = async (req, res) => {
   try {
     const { recipientId, content } = req.body;
@@ -336,7 +391,6 @@ export const sendChatMessage = async (req, res) => {
     });
   }
 };
-
 
 export const getChatList = async (req, res) => {
   try {
