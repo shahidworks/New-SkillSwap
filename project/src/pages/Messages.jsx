@@ -18,6 +18,25 @@ const Messages = () => {
   const [replyContent, setReplyContent] = useState('');
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef(null);
+  const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
+  const messagesContainerRef = useRef(null);
+
+
+  const handleScroll = () => {
+    const container = messagesContainerRef.current;
+    if (container) {
+        const { scrollTop, scrollHeight, clientHeight } = container;
+        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1; // 1px tolerance
+        setIsScrolledToBottom(isAtBottom);
+    }
+};
+
+
+  useEffect(() => {
+    if (isScrolledToBottom) {
+        scrollToBottom();
+    }
+}, [selectedChat?.messages, isScrolledToBottom]);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -353,7 +372,11 @@ const Messages = () => {
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-6">
+                  <div
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-6"
+      >
                     {/* Display all messages in chronological order (oldest first) */}
                     {sortedMessages.map(message => (
                       <div
