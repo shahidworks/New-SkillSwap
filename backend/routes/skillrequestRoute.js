@@ -4,7 +4,7 @@ import {
   getSentRequests,
   getReceivedRequests,
   updateSkillRequestStatus
-} from '../controllers/skillRequestController.js';
+} from '../controllers/skillrequestController.js';
 import authUser from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
