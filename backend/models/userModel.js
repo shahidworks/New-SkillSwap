@@ -20,7 +20,7 @@ const skillSchema = new mongoose.Schema({
     enum: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
     default: 'Beginner'
   }
-}, { _id: false });
+}, { _id: true });
 
 
 
@@ -44,7 +44,7 @@ const skillWanted = new mongoose.Schema({
     enum: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
     default: 'Beginner'
   }
-}, { _id: false });
+}, { _id: true });
 
 const userSchema = new mongoose.Schema({
   name: {

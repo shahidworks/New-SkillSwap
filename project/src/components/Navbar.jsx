@@ -18,7 +18,7 @@ const Navbar = () => {
   const navItems = [
     { path: '/home', icon: Home, label: 'Home' },
     { path: '/profile', icon: User, label: 'Profile' },
-    { path: '/chat', icon: MessageCircle, label: 'Chat' },
+    { path: '/messages', icon: MessageCircle, label: 'Chat' },
   ];
 
   return (

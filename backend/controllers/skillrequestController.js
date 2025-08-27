@@ -3,31 +3,62 @@ import skillRequestModel from "../models/skillRequestModel.js";
 // Create a skill request
 export const createSkillRequest = async (req, res) => {
   try {
-    const { receiver, skillOffered, skillRequested, message, timeOffered } =
-      req.body;
+    const { receiver, skillOffered, skillRequested, message, timeOffered = 1 } = req.body;
+    const senderId = req.user.id;
 
-    if (!receiver || !skillOffered || !skillRequested || !timeOffered) {
-      return res
-        .status(400)
-        .json({ success: false, msg: "All fields are required" });
-    }
-
-    const newRequest = new skillRequestModel({
-      sender: req.user.id,
+    console.log("skillRequestController: Creating new skill exchange request", {
+      senderId,
       receiver,
       skillOffered,
       skillRequested,
+      timeOffered
+    });
+
+    // Validate receiver exists
+    const receiverUser = await User.findById(receiver);
+    if (!receiverUser) {
+      console.error("skillRequestController: Receiver not found");
+      return res.status(404).json({ success: false, msg: "Receiver not found" });
+    }
+
+    // Get sender's skill details
+    const senderUser = await User.findById(senderId);
+    const offeredSkill = senderUser.skillsOffered.find(s => s._id.toString() === skillOffered);
+    if (!offeredSkill) {
+      console.error("skillRequestController: Offered skill not found in user's profile");
+      return res.status(400).json({ success: false, msg: "Invalid offered skill" });
+    }
+
+    // Create skill request
+    const newRequest = new skillRequestModel({
+      sender: senderId,
+      receiver,
+      skillOffered: offeredSkill.name,
+      skillRequested,
       message,
-      timeOffered,
+      timeOffered
     });
 
     const saved = await newRequest.save();
+    console.log("skillRequestController: Skill request saved:", saved);
 
-    console.log("Skill request created:", saved);
+    // Create initial message with status
+    const chatId = [senderId, receiver].sort().join('_');
+    const initialMessage = new Message({
+      sender: senderId,
+      recipient: receiver,
+      chatId,
+      content: message,
+      status: "pending",
+      skill: null // optional: link to skill
+    });
+
+    await initialMessage.save();
+    console.log("skillRequestController: Initial message created for chat");
 
     res.status(201).json({ success: true, data: saved });
   } catch (error) {
-    console.error("Error creating skill request:", error);
+    console.error("skillRequestController: Error creating skill request:", error);
     res.status(500).json({ success: false, msg: error.message });
   }
 };

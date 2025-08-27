@@ -1,3 +1,45 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+
+/* Chat styles */
+.chat-container {
+    height: calc(100vh - 64px);
+  }
+  
+  .message-container {
+    scrollbar-width: thin;
+    scrollbar-color: #e2e8f0 transparent;
+  }
+  
+  .message-container::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .message-container::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .message-container::-webkit-scrollbar-thumb {
+    background-color: #e2e8f0;
+    border-radius: 3px;
+  }
+  
+  /* Animation for new messages */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .message-enter {
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .chat-container {
+      height: calc(100vh - 56px);
+    }
+  }
