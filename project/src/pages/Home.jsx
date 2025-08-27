@@ -25,6 +25,7 @@ const Home = () => {
   const [messageContent, setMessageContent] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [selectedSkillIndex, setSelectedSkillIndex] = useState(null);
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   useEffect(() => {
     const fetchSkills = async () => {
@@ -33,12 +34,14 @@ const Home = () => {
         setError(null);
         console.log('Fetching skills from API...');
         
-        const response = await axios.get("http://localhost:4000/api/skills/excluding-current-user", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        console.log('Skills fetched:', response.data.data);
+       const response = await axios.get(`${backendUrl}/api/skills/excluding-current-user`, {
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+});
+
+console.log('Skills fetched:', response.data.data);
+
         
         setSkills(response.data.data || []);
       } catch (err) {

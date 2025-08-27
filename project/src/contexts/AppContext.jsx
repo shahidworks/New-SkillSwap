@@ -12,6 +12,7 @@ export const AppProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   const fetchMessages = useCallback(async () => {
     if (!user) return;

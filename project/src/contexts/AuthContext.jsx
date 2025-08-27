@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
 
   // Set base URL for API requests
-  axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+  axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
 
   // Set auth token if exists
   useEffect(() => {
