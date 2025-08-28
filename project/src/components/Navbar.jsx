@@ -22,7 +22,7 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className="bg-white shadow-lg border-b border-blue-100">
+    <nav className=" shadow-lg border-b border-blue-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -30,7 +30,7 @@ const Navbar = () => {
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <Clock className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-blue-600">SkillSwap+</span>
+            <span className="text-xl font-bold bg-gradient-to-r from-purple-800 to-indigo-700 bg-clip-text text-transparent">SkillSwap+</span>
           </Link>
 
           {/* Desktop Navigation */}

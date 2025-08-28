@@ -103,19 +103,28 @@ export const updateSkillRequestStatus = async (req, res) => {
         .json({ success: false, msg: "Invalid status provided" });
     }
 
-    const request = await skillRequestModel.findByIdAndUpdate(
+    // Check if request exists and is still pending
+    const request = await skillRequestModel.findById(requestId);
+    if (!request) {
+      return res.status(404).json({ success: false, msg: "Request not found" });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json({ 
+        success: false, 
+        msg: "This request has already been processed" 
+      });
+    }
+
+    const updatedRequest = await skillRequestModel.findByIdAndUpdate(
       requestId,
       { status },
       { new: true }
     );
 
-    if (!request) {
-      return res.status(404).json({ success: false, msg: "Request not found" });
-    }
-
     console.log(`Skill request ${requestId} updated to status: ${status}`);
 
-    res.json({ success: true, data: request });
+    res.json({ success: true, data: updatedRequest });
   } catch (error) {
     console.error("Error updating skill request:", error);
     res.status(500).json({ success: false, msg: error.message });

@@ -7,10 +7,21 @@ import {
   CheckCircle, XCircle, Lock, CreditCard, Coins
 } from 'lucide-react';
 import { formatDistanceToNow } from '../utils/dateUtils';
+import io from 'socket.io-client';
 
 const Messages = () => {
   const { user } = useAuth();
-  const { chats, messages, notifications, updateMessageStatus, markMessageAsRead, fetchMessages, sendMessage, refreshUser } = useApp();
+  const { 
+    chats, 
+    messages, 
+    notifications, 
+    updateMessageStatus, 
+    markMessageAsRead, 
+    fetchMessages, 
+    sendMessage, 
+    refreshUser 
+  } = useApp();
+  
   const [selectedChat, setSelectedChat] = useState(null);
   const [activeTab, setActiveTab] = useState('chats');
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,6 +35,72 @@ const Messages = () => {
   const [localMessages, setLocalMessages] = useState([]);
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [creditError, setCreditError] = useState('');
+  const socketRef = useRef(null);
+
+  // Initialize socket connection
+  useEffect(() => {
+    socketRef.current = io(import.meta.env.VITE_BACKEND_URL, {
+      auth: {
+        token: localStorage.getItem('token')
+      }
+    });
+
+    // Listen for new messages
+    socketRef.current.on('receive-message', (message) => {
+      if (selectedChat && selectedChat.partner._id === message.sender._id) {
+        setLocalMessages(prev => [...prev, message]);
+        
+        // Mark as read if it's for current user
+        if (message.recipient._id === user.id && !message.isRead) {
+          markMessageAsRead(message._id);
+        }
+      }
+      
+      // Refresh messages to update chat list
+      fetchMessages();
+    });
+
+    // Listen for message status updates
+    socketRef.current.on('message-status-updated', (updatedMessage) => {
+      setLocalMessages(prev => 
+        prev.map(msg => 
+          msg._id === updatedMessage._id ? updatedMessage : msg
+        )
+      );
+      
+      // Add to processed requests
+      setProcessedRequests(prev => new Set([...prev, updatedMessage._id]));
+      
+      // Refresh messages to update chat list
+      fetchMessages();
+    });
+
+    // Listen for credit updates
+    socketRef.current.on('credits-updated', (userData) => {
+      if (userData._id === user.id) {
+        refreshUser();
+      }
+    });
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, [selectedChat, user]);
+
+  // Load processed requests from localStorage on component mount
+  useEffect(() => {
+    const savedProcessedRequests = localStorage.getItem('processedRequests');
+    if (savedProcessedRequests) {
+      setProcessedRequests(new Set(JSON.parse(savedProcessedRequests)));
+    }
+  }, []);
+
+  // Save processed requests to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('processedRequests', JSON.stringify(Array.from(processedRequests)));
+  }, [processedRequests]);
 
   const getCurrentUserId = () => {
     return user.id || user._id;
@@ -155,6 +232,14 @@ const Messages = () => {
           )
         );
         
+        // Emit socket event for real-time update
+        if (socketRef.current) {
+          socketRef.current.emit('update-message-status', {
+            messageId: exchangeRequest._id,
+            status
+          });
+        }
+        
         await updateMessageStatus(exchangeRequest._id, status);
         
         // Refresh user data to get updated credits
@@ -187,6 +272,23 @@ const Messages = () => {
           // Add to local messages immediately
           setLocalMessages(prevMessages => [...prevMessages, tempSystemMessage]);
           
+          // Send via socket for real-time
+          if (socketRef.current) {
+            socketRef.current.emit('send-message', {
+              recipientId: selectedChat.partner._id,
+              content: JSON.stringify({
+                type: 'system_message',
+                content: statusMessage,
+                exchangeStatus: status,
+                originalRequest: parsedContent,
+                creditDeduction: status === 'accepted' ? {
+                  senderDeduction: parsedContent.skillRequested.rate,
+                  recipientDeduction: parsedContent.skillOffered.rate
+                } : null
+              })
+            });
+          }
+          
           await sendMessage(
             selectedChat.partner._id,
             null,
@@ -212,6 +314,12 @@ const Messages = () => {
         }, 500);
       } catch (error) {
         console.error('Error processing status update:', error);
+        // Remove from processed requests if there was an error
+        setProcessedRequests(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(exchangeRequest._id);
+          return newSet;
+        });
       }
     }
   };
@@ -241,6 +349,14 @@ const Messages = () => {
       
       // Add to local messages immediately
       setLocalMessages(prevMessages => [...prevMessages, tempMessage]);
+      
+      // Send via socket for real-time
+      if (socketRef.current) {
+        socketRef.current.emit('send-message', {
+          recipientId: selectedChat.partner._id,
+          content: replyContent
+        });
+      }
       
       // Clear the input immediately
       const messageToSend = replyContent;
@@ -320,7 +436,7 @@ const Messages = () => {
           const isExchangeRequest = parsedContent.type === 'skill_exchange_request';
           const isPending = msg.status === 'pending';
           
-          // Check if this request has been processed locally
+          // Check if this request has been processed locally or in the backend
           const isProcessed = processedRequests.has(msg._id);
           
           return isExchangeRequest && isPending && !isProcessed;
@@ -405,8 +521,8 @@ const Messages = () => {
             {parsedContent.creditDeduction && (
               <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
                 <div className="font-medium text-blue-800">Credit Deduction:</div>
-                <div>-{parsedContent.creditDeduction.senderDeduction} credit(s) from {parsedContent.originalRequest.requesterName}</div>
-                <div>-{parsedContent.creditDeduction.recipientDeduction} credit(s) from {selectedChat.partner.name}</div>
+                <div className='text-gray-600'>-{parsedContent.creditDeduction.senderDeduction} credit(s) from {parsedContent.originalRequest.requesterName}</div>
+                <div className='text-gray-600'>-{parsedContent.creditDeduction.recipientDeduction} credit(s) from {selectedChat.partner.name}</div>
               </div>
             )}
           </div>

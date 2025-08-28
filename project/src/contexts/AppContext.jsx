@@ -17,7 +17,7 @@ export const AppProvider = ({ children }) => {
 
   const refreshUser = async () => {
   try {
-    const response = await api.get('/auth/me');
+    const response = await axios.get(`${backendUrl}/api/auth/me`);
     setUser(response.data.data);
   } catch (error) {
     console.error('Error refreshing user data:', error);
@@ -119,35 +119,35 @@ export const AppProvider = ({ children }) => {
 };
 
   const updateMessageStatus = async (messageId, status) => {
-    try {
-      console.log(`Updating message ${messageId} to status ${status}`);
-      const response = await axios.patch(`/api/messages/${messageId}/status`, { status });
-      
-      setMessages(prev => 
-        prev.map(msg => 
-          msg._id === messageId ? response.data.data : msg
-        )
-      );
-      
-      // Update chats if needed
-      setChats(prev => 
-        prev.map(chat => {
-          if (chat.lastMessage._id === messageId) {
-            return {
-              ...chat,
-              lastMessage: response.data.data
-            };
-          }
-          return chat;
-        })
-      );
-      
-      return response.data.data;
-    } catch (err) {
-      console.error('Error updating message status:', err);
-      throw err;
-    }
-  };
+  try {
+    console.log(`Updating message ${messageId} to status ${status}`);
+    const response = await axios.put(`/api/messages/${messageId}/status`, { status });
+    
+    setMessages(prev => 
+      prev.map(msg => 
+        msg._id === messageId ? response.data.data : msg
+      )
+    );
+
+    setChats(prev => 
+      prev.map(chat => {
+        if (chat.lastMessage._id === messageId) {
+          return {
+            ...chat,
+            lastMessage: response.data.data
+          };
+        }
+        return chat;
+      })
+    );
+
+    return response.data.data;
+  } catch (err) {
+    console.error('Error updating message status:', err);
+    throw err;
+  }
+};
+
 
   const markMessageAsRead = async (messageId) => {
     try {

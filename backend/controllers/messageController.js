@@ -210,21 +210,15 @@ export const updateMessageStatus = async (req, res) => {
 
     console.log(`Updating message ${id} to status: ${status} by user: ${userId}`);
 
-    // Find the message first
+    // Find the message first with proper population
     const message = await Message.findById(id)
       .populate("sender", "name email credits")
-      .populate("recipient", "name email credits");
+      .populate("recipient", "name email credits")
+      .populate("skill", "name category rate level description")
+      .populate("offeredSkill", "name category rate level description");
 
     if (!message) {
       return res.status(404).json({ success: false, error: "Message not found" });
-    }
-
-    // Parse the message content to get skill details
-    let messageContent;
-    try {
-      messageContent = JSON.parse(message.content);
-    } catch (err) {
-      return res.status(400).json({ success: false, error: "Invalid message content format" });
     }
 
     // Check if user has permission to update this message
@@ -246,6 +240,14 @@ export const updateMessageStatus = async (req, res) => {
       });
     }
 
+    // If already processed, don't process again
+    if (message.status !== 'pending') {
+      return res.status(400).json({ 
+        success: false, 
+        error: "This request has already been processed" 
+      });
+    }
+
     // Update the message status
     const updatedMessage = await Message.findByIdAndUpdate(
       id,
@@ -253,33 +255,81 @@ export const updateMessageStatus = async (req, res) => {
       { new: true }
     )
       .populate("sender", "name email credits")
-      .populate("recipient", "name email credits");
+      .populate("recipient", "name email credits")
+      .populate("skill", "name category rate level description")
+      .populate("offeredSkill", "name category rate level description");
 
     // If message accepted → handle credits
     if (status === "accepted") {
-      const { skillRequested, skillOffered } = messageContent;
+      try {
+        // Parse the message content to get skill details
+        let messageContent;
+        try {
+          messageContent = JSON.parse(message.content);
+        } catch (err) {
+          console.error("Error parsing message content:", err);
+          return res.status(400).json({ 
+            success: false, 
+            error: "Invalid message content format" 
+          });
+        }
 
-      if (!skillRequested?.rate || !skillOffered?.rate) {
-        return res.status(400).json({ 
-          success: false, 
-          error: "Skill rates not found in message content" 
-        });
-      }
+        const { skillRequested, skillOffered } = messageContent;
 
-      const transactionResult = await handleCreditTransaction(
-        message.sender._id,
-        message.recipient._id,
-        skillRequested.rate,
-        skillOffered.rate
-      );
+        if (!skillRequested?.rate || !skillOffered?.rate) {
+          return res.status(400).json({ 
+            success: false, 
+            error: "Skill rates not found in message content" 
+          });
+        }
 
-      if (!transactionResult.success) {
+        // Deduct credits from both users
+        const requestedHours = parseInt(skillRequested.rate);
+        const offeredHours = parseInt(skillOffered.rate);
+
+        // Find and update both users
+        const sender = await User.findById(message.sender._id);
+        const recipient = await User.findById(message.recipient._id);
+
+        if (!sender || !recipient) {
+          return res.status(404).json({ 
+            success: false, 
+            error: "User not found" 
+          });
+        }
+
+        // Check if both users have enough credits
+        if (sender.credits < requestedHours) {
+          return res.status(400).json({ 
+            success: false, 
+            error: `${sender.name} doesn't have enough credits (needs ${requestedHours}, has ${sender.credits})` 
+          });
+        }
+
+        if (recipient.credits < offeredHours) {
+          return res.status(400).json({ 
+            success: false, 
+            error: `${recipient.name} doesn't have enough credits (needs ${offeredHours}, has ${recipient.credits})` 
+          });
+        }
+
+        // Perform credit transactions
+        sender.credits -= requestedHours;
+        recipient.credits -= offeredHours;
+
+        await sender.save();
+        await recipient.save();
+
+        console.log(`Credits deducted: ${sender.name} -${requestedHours}, ${recipient.name} -${offeredHours}`);
+
+      } catch (error) {
+        console.error("Credit transaction failed:", error);
         // Revert the message status if credit transaction fails
         await Message.findByIdAndUpdate(id, { status: 'pending' });
         
-        return res.status(400).json({ 
+        return res.status(500).json({ 
           success: false, 
-          error: transactionResult.error 
+          error: "Failed to process credit transaction" 
         });
       }
     }
@@ -287,7 +337,9 @@ export const updateMessageStatus = async (req, res) => {
     res.status(200).json({ 
       success: true, 
       data: updatedMessage,
-      message: status === 'accepted' ? 'Exchange accepted and credits deducted' : 'Exchange declined'
+      message: status === 'accepted' 
+        ? 'Exchange accepted and credits deducted' 
+        : 'Exchange declined'
     });
   } catch (error) {
     console.error("Error updating message status:", error);
