@@ -39,6 +39,7 @@ const Messages = () => {
 
   // Initialize socket connection
   useEffect(() => {
+
     socketRef.current = io(import.meta.env.VITE_BACKEND_URL, {
       auth: {
         token: localStorage.getItem('token')
@@ -75,7 +76,7 @@ const Messages = () => {
       fetchMessages();
     });
 
-    // Listen for credit updates
+    // Listen for credit updates in real-time
     socketRef.current.on('credits-updated', (userData) => {
       if (userData._id === user.id) {
         refreshUser();
@@ -511,6 +512,10 @@ const Messages = () => {
         );
       
       case 'system_message':
+        const originalRequest = parsedContent.originalRequest || {};
+        const requesterName = originalRequest.requesterName || "Requester";
+        const partnerName = selectedChat?.partner?.name || "Partner";
+        
         return (
           <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-gray-400">
             <div className="flex items-center space-x-2 mb-1">
@@ -521,8 +526,8 @@ const Messages = () => {
             {parsedContent.creditDeduction && (
               <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
                 <div className="font-medium text-blue-800">Credit Deduction:</div>
-                <div className='text-gray-600'>-{parsedContent.creditDeduction.senderDeduction} credit(s) from {parsedContent.originalRequest.requesterName}</div>
-                <div className='text-gray-600'>-{parsedContent.creditDeduction.recipientDeduction} credit(s) from {selectedChat.partner.name}</div>
+                <div className='text-gray-600'>-{parsedContent.creditDeduction.senderDeduction} credit(s) from {requesterName}</div>
+                <div className='text-gray-600'>-{parsedContent.creditDeduction.recipientDeduction} credit(s) from {partnerName}</div>
               </div>
             )}
           </div>

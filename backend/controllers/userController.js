@@ -230,11 +230,89 @@ const getSkills = async (req, res) => {
   }
 };
 
+// Update user profile
+const updateProfile = async (req, res) => {
+  try {
+    const { name, email, bio } = req.body;
+    const userId = req.user.id;
+
+    // Validate input
+    if (!name || !email) {
+      return res.status(400).json({ success: false, msg: "Name and email are required" });
+    }
+
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({ success: false, msg: "Invalid email format" });
+    }
+
+    // Check if email is already taken by another user
+    const existingUser = await userModel.findOne({ email, _id: { $ne: userId } });
+    if (existingUser) {
+      return res.status(400).json({ success: false, msg: "Email already taken" });
+    }
+
+    const updatedUser = await userModel.findByIdAndUpdate(
+      userId,
+      { name, email, bio },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, msg: "User not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({ success: false, msg: error.message });
+  }
+};
+
+
+// Update user avatar
+const updateAvatar = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, msg: "No file uploaded" });
+    }
+
+    // Upload new avatar to Cloudinary
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: "skill_swap/avatars",
+    });
+
+    const updatedUser = await userModel.findByIdAndUpdate(
+      userId,
+      { avatar: result.secure_url },
+      { new: true }
+    ).select("-password");
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, msg: "User not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("Error updating avatar:", error);
+    res.status(500).json({ success: false, msg: error.message });
+  }
+};
+
 export { 
   registerUser,
   loginUser, 
   getUserFromToken,
   addSkill,
   removeSkill,
-  getSkills
+  getSkills,
+  updateProfile,
+  updateAvatar
 };

@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext';
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [skills, setSkills] = useState([]);
   const [messages, setMessages] = useState([]);
   const [chats, setChats] = useState([]);
@@ -13,16 +13,6 @@ export const AppProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-
-
-  const refreshUser = async () => {
-  try {
-    const response = await axios.get(`${backendUrl}/api/auth/me`);
-    setUser(response.data.data);
-  } catch (error) {
-    console.error('Error refreshing user data:', error);
-  }
-};
 
   const fetchMessages = useCallback(async () => {
     if (!user) return;
@@ -61,93 +51,92 @@ export const AppProvider = ({ children }) => {
   };
 
   const sendMessage = async (recipientId, offeredSkillId, skillId, content) => {
-  try {
-    console.log('Sending message with:', {
-      recipientId,
-      offeredSkillId,
-      skillId,
-      content
-    });
-    
-    // ✅ Ensure we're sending the correct data structure
-    const requestData = {
-      recipientId,
-      skillId,  // skill being requested
-      offeredSkillId,  // skill being offered
-      content
-    };
-    
-    console.log('Request data:', requestData);
-    
-    const response = await axios.post('/api/messages', requestData);
-    
-    console.log('Message sent successfully:', response.data.data);
-    
-    // Update local state
-    setMessages(prev => [response.data.data, ...prev]);
-    
-    // Update chats
-    const partnerId = response.data.data.recipient._id || response.data.data.recipient;
-    setChats(prev => {
-      const existingChatIndex = prev.findIndex(chat => 
-        chat.partner._id === partnerId
-      );
+    try {
+      console.log('Sending message with:', {
+        recipientId,
+        offeredSkillId,
+        skillId,
+        content
+      });
       
-      if (existingChatIndex >= 0) {
-        const updatedChats = [...prev];
-        updatedChats[existingChatIndex] = {
-          ...updatedChats[existingChatIndex],
-          lastMessage: response.data.data,
-          messages: [response.data.data, ...updatedChats[existingChatIndex].messages]
-        };
-        return updatedChats;
-      } else {
-        return [{
-          partner: response.data.data.recipient,
-          lastMessage: response.data.data,
-          unreadCount: 0,
-          messages: [response.data.data]
-        }, ...prev];
-      }
-    });
-    
-    return response.data.data;
-  } catch (err) {
-    console.error('Error sending message:', err);
-    throw err;
-  }
-};
+      // ✅ Ensure we're sending the correct data structure
+      const requestData = {
+        recipientId,
+        skillId,  // skill being requested
+        offeredSkillId,  // skill being offered
+        content
+      };
+      
+      console.log('Request data:', requestData);
+      
+      const response = await axios.post('/api/messages', requestData);
+      
+      console.log('Message sent successfully:', response.data.data);
+      
+      // Update local state
+      setMessages(prev => [response.data.data, ...prev]);
+      
+      // Update chats
+      const partnerId = response.data.data.recipient._id || response.data.data.recipient;
+      setChats(prev => {
+        const existingChatIndex = prev.findIndex(chat => 
+          chat.partner._id === partnerId
+        );
+        
+        if (existingChatIndex >= 0) {
+          const updatedChats = [...prev];
+          updatedChats[existingChatIndex] = {
+            ...updatedChats[existingChatIndex],
+            lastMessage: response.data.data,
+            messages: [response.data.data, ...updatedChats[existingChatIndex].messages]
+          };
+          return updatedChats;
+        } else {
+          return [{
+            partner: response.data.data.recipient,
+            lastMessage: response.data.data,
+            unreadCount: 0,
+            messages: [response.data.data]
+          }, ...prev];
+        }
+      });
+      
+      return response.data.data;
+    } catch (err) {
+      console.error('Error sending message:', err);
+      throw err;
+    }
+  };
 
   const updateMessageStatus = async (messageId, status) => {
-  try {
-    console.log(`Updating message ${messageId} to status ${status}`);
-    const response = await axios.put(`/api/messages/${messageId}/status`, { status });
-    
-    setMessages(prev => 
-      prev.map(msg => 
-        msg._id === messageId ? response.data.data : msg
-      )
-    );
+    try {
+      console.log(`Updating message ${messageId} to status ${status}`);
+      const response = await axios.put(`/api/messages/${messageId}/status`, { status });
+      
+      setMessages(prev => 
+        prev.map(msg => 
+          msg._id === messageId ? response.data.data : msg
+        )
+      );
 
-    setChats(prev => 
-      prev.map(chat => {
-        if (chat.lastMessage._id === messageId) {
-          return {
-            ...chat,
-            lastMessage: response.data.data
-          };
-        }
-        return chat;
-      })
-    );
+      setChats(prev => 
+        prev.map(chat => {
+          if (chat.lastMessage._id === messageId) {
+            return {
+              ...chat,
+              lastMessage: response.data.data
+            };
+          }
+          return chat;
+        })
+      );
 
-    return response.data.data;
-  } catch (err) {
-    console.error('Error updating message status:', err);
-    throw err;
-  }
-};
-
+      return response.data.data;
+    } catch (err) {
+      console.error('Error updating message status:', err);
+      throw err;
+    }
+  };
 
   const markMessageAsRead = async (messageId) => {
     try {

@@ -10,9 +10,22 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   // Set base URL for API requests
-  axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
+  axios.defaults.baseURL = backendUrl;
+
+  const refreshUser = async () => {
+    try {
+      console.log('Refreshing user data...');
+      const response = await axios.get('/api/users/me');
+      console.log('User data refreshed:', response.data.user);
+      setUser(response.data.user);
+    } catch (err) {
+      console.error('Error refreshing user data:', err);
+      setError(err.response?.data?.msg || 'Failed to refresh user data');
+    }
+  };
 
   // Set auth token if exists
   useEffect(() => {
@@ -162,7 +175,8 @@ export const AuthProvider = ({ children }) => {
         updateAvatar,
         addSkill,
         removeSkill,
-        setError
+        setError,
+        refreshUser
       }}
     >
       {children}

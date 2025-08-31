@@ -5,7 +5,9 @@ import {
   getUserFromToken,
   addSkill,
   removeSkill,
-  getSkills
+  getSkills,
+  updateProfile,
+  updateAvatar
 } from '../controllers/userController.js';
 import authUser from '../middlewares/authMiddleware.js';
 import upload from "../middlewares/multer.js";
@@ -16,6 +18,10 @@ const router = express.Router();
 router.post('/login', loginUser);
 router.post('/register', upload.single('avatar'), registerUser);
 router.get('/me', authUser, getUserFromToken);
+
+// Profile update routes
+router.put('/me', authUser, updateProfile);
+router.put('/me/avatar', authUser, upload.single('avatar'), updateAvatar);
 
 // Skill management routes
 router.post('/skills', authUser, addSkill);

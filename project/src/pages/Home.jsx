@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useApp } from '../contexts/AppContext';
 import SkillCard from '../components/SkillCard';
-import SearchAndFilter from '../components/SearchAndFilter';
 import { 
   TrendingUp, Users, Clock, Star, X, Mail, MessageSquare, Phone, 
   Heart, Linkedin, Twitter, Facebook, Instagram, Github, AlertCircle,
-  CheckCircle,
-  Send
+  CheckCircle, Send, Search, Filter, SlidersHorizontal
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -15,6 +13,7 @@ const Home = () => {
   const { user, token } = useAuth();
   const { skills: appSkills, sendMessage } = useApp();
   const [skills, setSkills] = useState([]);
+  const [filteredSkills, setFilteredSkills] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedSkill, setSelectedSkill] = useState(null);
@@ -25,7 +24,19 @@ const Home = () => {
   const [messageContent, setMessageContent] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [selectedSkillIndex, setSelectedSkillIndex] = useState(null);
+  
+  // Search and filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedLevel, setSelectedLevel] = useState('all');
+  const [maxRate, setMaxRate] = useState(10);
+  const [showFilters, setShowFilters] = useState(false);
+  
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
+  // Available categories and levels for filtering
+  const categories = ['all', 'Technology', 'Arts', 'Language', 'Business', 'Lifestyle', 'Academic', 'Other'];
+  const levels = ['all', 'Beginner', 'Intermediate', 'Advanced'];
 
   useEffect(() => {
     const fetchSkills = async () => {
@@ -34,20 +45,22 @@ const Home = () => {
         setError(null);
         console.log('Fetching skills from API...');
         
-       const response = await axios.get(`${backendUrl}/api/skills/excluding-current-user`, {
-  headers: {
-    Authorization: `Bearer ${token}`,
-  },
-});
+        const response = await axios.get(`${backendUrl}/api/skills/excluding-current-user`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-console.log('Skills fetched:', response.data.data);
-
+        console.log('Skills fetched:', response.data.data);
         
         setSkills(response.data.data || []);
+        setFilteredSkills(response.data.data || []);
       } catch (err) {
         console.error('Error fetching skills:', err);
         setError(err.response?.data?.message || 'Failed to load skills');
-        setSkills(getDummySkills());
+        const dummySkills = getDummySkills();
+        setSkills(dummySkills);
+        setFilteredSkills(dummySkills);
       } finally {
         setIsLoading(false);
       }
@@ -63,6 +76,43 @@ console.log('Skills fetched:', response.data.data);
       console.log('User skills loaded:', user.skillsOffered);
     }
   }, [user]);
+
+  // Apply filters and search
+  useEffect(() => {
+    let results = skills;
+    
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      results = results.filter(skill => 
+        skill.name.toLowerCase().includes(query) ||
+        skill.description.toLowerCase().includes(query) ||
+        skill.category.toLowerCase().includes(query) ||
+        skill.userName.toLowerCase().includes(query)
+      );
+    }
+    
+    // Apply category filter
+    if (selectedCategory !== 'all') {
+      results = results.filter(skill => 
+        skill.category === selectedCategory
+      );
+    }
+    
+    // Apply level filter
+    if (selectedLevel !== 'all') {
+      results = results.filter(skill => 
+        skill.level === selectedLevel
+      );
+    }
+    
+    // Apply rate filter
+    results = results.filter(skill => 
+      skill.rate <= maxRate
+    );
+    
+    setFilteredSkills(results);
+  }, [searchQuery, selectedCategory, selectedLevel, maxRate, skills]);
 
   const getDummySkills = () => {
     console.warn('Using dummy data as fallback');
@@ -90,6 +140,54 @@ console.log('Skills fetched:', response.data.data);
         userName: 'Maria Garcia',
         userAvatar: '/default-avatar.png',
         location: 'Los Angeles, CA'
+      },
+      {
+        _id: '3',
+        name: 'Python Programming',
+        description: 'Learn Python from basics to advanced concepts',
+        rate: 3,
+        level: 'Intermediate',
+        category: 'Technology',
+        userId: '789',
+        userName: 'John Smith',
+        userAvatar: '/default-avatar.png',
+        location: 'San Francisco, CA'
+      },
+      {
+        _id: '4',
+        name: 'Graphic Design',
+        description: 'Master Adobe Photoshop and Illustrator',
+        rate: 2,
+        level: 'Advanced',
+        category: 'Arts',
+        userId: '101',
+        userName: 'Sarah Wilson',
+        userAvatar: '/default-avatar.png',
+        location: 'Chicago, IL'
+      },
+      {
+        _id: '5',
+        name: 'Spanish Language',
+        description: 'Learn conversational Spanish',
+        rate: 1,
+        level: 'Beginner',
+        category: 'Language',
+        userId: '102',
+        userName: 'Carlos Rodriguez',
+        userAvatar: '/default-avatar.png',
+        location: 'Miami, FL'
+      },
+      {
+        _id: '6',
+        name: 'Yoga & Meditation',
+        description: 'Beginner to advanced yoga practices',
+        rate: 2,
+        level: 'Intermediate',
+        category: 'Lifestyle',
+        userId: '103',
+        userName: 'Priya Patel',
+        userAvatar: '/default-avatar.png',
+        location: 'Austin, TX'
       }
     ];
   };
@@ -235,6 +333,13 @@ console.log('Skills fetched:', response.data.data);
     }
   };
 
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedCategory('all');
+    setSelectedLevel('all');
+    setMaxRate(10);
+  };
+
   const stats = [
     { icon: Users, label: 'Active Users', value: '1,234' },
     { icon: TrendingUp, label: 'Skills Available', value: skills.length || '0' },
@@ -291,8 +396,135 @@ console.log('Skills fetched:', response.data.data);
           </div>
 
           {/* Search and Filter */}
-          <div className="mb-12">
-            <SearchAndFilter />
+          <div className="mb-12 bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-purple-100">
+            <div className="flex flex-col md:flex-row gap-4">
+              {/* Search Input */}
+              <div className="flex-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-purple-500" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search skills (e.g. Python, Photography, Yoga...)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 bg-white"
+                />
+              </div>
+              
+              {/* Filter Toggle Button */}
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl hover:from-purple-600 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+                <Filter className="h-5 w-5" />
+                <span>Filters</span>
+                {showFilters ? (
+                  <X className="h-5 w-5" />
+                ) : (
+                  <SlidersHorizontal className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+            
+            {/* Filter Options */}
+            {showFilters && (
+              <div className="mt-6 pt-6 border-t border-purple-100 grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Category Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Category</label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full px-4 py-2 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 bg-white"
+                  >
+                    {categories.map(category => (
+                      <option key={category} value={category}>
+                        {category.charAt(0).toUpperCase() + category.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Level Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Skill Level</label>
+                  <select
+                    value={selectedLevel}
+                    onChange={(e) => setSelectedLevel(e.target.value)}
+                    className="w-full px-4 py-2 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 bg-white"
+                  >
+                    {levels.map(level => (
+                      <option key={level} value={level}>
+                        {level.charAt(0).toUpperCase() + level.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Rate Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Max Rate: {maxRate} hour{maxRate !== 1 ? 's' : ''}
+                  </label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={maxRate}
+                    onChange={(e) => setMaxRate(parseInt(e.target.value))}
+                    className="w-full h-2 bg-purple-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-purple-600"
+                  />
+                  <div className="flex justify-between text-xs text-slate-500 mt-1">
+                    <span>1h</span>
+                    <span>5h</span>
+                    <span>10h</span>
+                  </div>
+                </div>
+                
+                {/* Clear Filters Button */}
+                <div className="md:col-span-3 flex justify-end">
+                  <button
+                    onClick={clearFilters}
+                    className="px-4 py-2 text-sm text-purple-600 hover:text-purple-800 font-medium hover:bg-purple-50 rounded-xl transition-all duration-300 flex items-center gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Clear All Filters
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Results Count */}
+            <div className="mt-4 flex justify-between items-center">
+              <p className="text-sm text-slate-600">
+                Showing {filteredSkills.length} of {skills.length} skills
+              </p>
+              {(searchQuery || selectedCategory !== 'all' || selectedLevel !== 'all' || maxRate < 10) && (
+                <div className="flex flex-wrap gap-2">
+                  {searchQuery && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                      Search: {searchQuery}
+                    </span>
+                  )}
+                  {selectedCategory !== 'all' && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                      Category: {selectedCategory}
+                    </span>
+                  )}
+                  {selectedLevel !== 'all' && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      Level: {selectedLevel}
+                    </span>
+                  )}
+                  {maxRate < 10 && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Max Rate: {maxRate}h
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Skills Grid */}
@@ -330,17 +562,23 @@ console.log('Skills fetched:', response.data.data);
                   </div>
                 ))}
               </div>
-            ) : skills.length === 0 ? (
+            ) : filteredSkills.length === 0 ? (
               <div className="text-center py-16 bg-white/50 backdrop-blur-sm rounded-2xl border border-purple-100">
                 <div className="w-24 h-24 bg-gradient-to-r from-purple-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
                   <Users className="w-12 h-12 text-purple-500" />
                 </div>
                 <h3 className="text-xl font-semibold text-slate-800 mb-2">No skills found</h3>
-                <p className="text-slate-600">Try adjusting your search or check back later for new opportunities.</p>
+                <p className="text-slate-600 mb-4">Try adjusting your search filters or check back later for new opportunities.</p>
+                <button
+                  onClick={clearFilters}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl hover:from-purple-600 hover:to-indigo-700 transition-all duration-300"
+                >
+                  Clear All Filters
+                </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {skills.map((skill, index) => (
+                {filteredSkills.map((skill, index) => (
                   <SkillCard
                     key={`skill-${skill.userId}-${skill._id || skill.id || index}`}
                     skill={skill}
@@ -411,9 +649,9 @@ console.log('Skills fetched:', response.data.data);
             <div className="max-w-3xl mx-auto">
               <h2 className="text-4xl font-bold mb-6">Ready to Share Your Skills?</h2>
               <p className="text-xl mb-8 opacity-90">Join thousands of community members exchanging knowledge and building meaningful connections.</p>
-              <button className="bg-white text-purple-700 font-bold px-8 py-4 rounded-xl hover:bg-gray-50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105">
+              <a href='/profile' className="bg-white text-purple-700 font-bold px-8 py-4 rounded-xl hover:bg-gray-50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105">
                 Add Your Skills Now
-              </button>
+              </a>
             </div>
           </div>
         </div>
@@ -433,16 +671,16 @@ console.log('Skills fetched:', response.data.data);
               <p className="text-slate-400 leading-relaxed">Connecting communities through skill sharing and innovative time banking solutions.</p>
               <div className="flex space-x-4">
                 <a href="#" className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-purple-600 transition-all duration-300">
-                  <Facebook className="w-5 h-5" />
+                  <Facebook className="w-5 w-5" />
                 </a>
                 <a href="#" className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-purple-600 transition-all duration-300">
-                  <Twitter className="w-5 h-5" />
+                  <Twitter className="w-5 w-5" />
                 </a>
                 <a href="#" className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-purple-600 transition-all duration-300">
-                  <Instagram className="w-5 h-5" />
+                  <Instagram className="w-5 w-5" />
                 </a>
                 <a href="#" className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-purple-600 transition-all duration-300">
-                  <Linkedin className="w-5 h-5" />
+                  <Linkedin className="w-5 w-5" />
                 </a>
               </div>
             </div>
